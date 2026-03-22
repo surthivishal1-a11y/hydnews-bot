@@ -66,5 +66,5 @@ def main():
         scrape()
         time.sleep(300)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
