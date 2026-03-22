@@ -2,7 +2,12 @@ import requests
 from bs4 import BeautifulSoup
 import sqlite3
 import time
-from telegram import Bot
+import urllib3
+import warnings
+
+# 🔥 REMOVE SSL WARNING
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+warnings.filterwarnings("ignore")
 
 # ===== SETTINGS =====
 BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
@@ -10,84 +15,114 @@ CHAT_ID = "1793924830"
 
 URL = "https://www.manabadi.co.in/institute/DisplayDocsDetails.aspx?DocSourceId=20"
 
+
 # ===== DATABASE =====
 def setup_db():
     conn = sqlite3.connect("news.db")
     c = conn.cursor()
+
     c.execute("""
-        CREATE TABLE IF NOT EXISTS seen_updates (
+        CREATE TABLE IF NOT EXISTS updates (
             title TEXT PRIMARY KEY
         )
     """)
+
     conn.commit()
     conn.close()
+
 
 def is_new(title):
     conn = sqlite3.connect("news.db")
     c = conn.cursor()
-    c.execute("SELECT title FROM seen_updates WHERE title=?", (title,))
+
+    c.execute("SELECT title FROM updates WHERE title=?", (title,))
     result = c.fetchone()
+
     conn.close()
     return result is None
 
-def save_update(title):
+
+def save(title):
     conn = sqlite3.connect("news.db")
     c = conn.cursor()
-    c.execute("INSERT OR IGNORE INTO seen_updates (title) VALUES (?)", (title,))
+
+    c.execute("INSERT OR IGNORE INTO updates(title) VALUES(?)", (title,))
     conn.commit()
     conn.close()
 
+
 # ===== TELEGRAM =====
 def send_telegram(message):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+
     try:
-        bot = Bot(token=BOT_TOKEN)
-        bot.send_message(chat_id=CHAT_ID, text=message)
-        print("Sent:", message)
+        requests.post(url, data={
+            "chat_id": CHAT_ID,
+            "text": message
+        })
     except Exception as e:
         print("Telegram Error:", e)
 
+
 # ===== SCRAPER =====
-def scrape():
+def check_updates():
+    print("Checking updates...")
+
     try:
-        response = requests.get(URL, verify=False)
-        soup = BeautifulSoup(response.text, "html.parser")
+        res = requests.get(URL, verify=False, timeout=15)
+        soup = BeautifulSoup(res.text, "html.parser")
 
-        updates_found = False
+        links = soup.find_all("a")
 
-        # 🔴 TARGET ONLY REAL TABLE DATA
-        rows = soup.find_all("tr")
+        updates_found = []
 
-        for row in rows:
-            cols = row.find_all("td")
+        for link in links:
+            title = link.text.strip()
 
-            # Ensure valid row with content
-            if len(cols) >= 2:
-                title = cols[1].get_text(strip=True)
+            # 🔥 FILTER ONLY VALID ITEMS
+            if len(title) < 10:
+                continue
 
-                # ignore short/garbage text
-                if title and len(title) > 15:
-                    if is_new(title):
-                        send_telegram(title)
-                        save_update(title)
-                        updates_found = True
+            if any(x in title.lower() for x in [
+                "login", "home", "mobile app", "books", "articles",
+                "teachers", "institutes", "loans"
+            ]):
+                continue
 
-        if not updates_found:
-            print("No new updates")
+            updates_found.append(title)
+
+            if is_new(title):
+                message = f"🆕 NEW UPDATE:\n{title}\n{URL}"
+                send_telegram(message)
+                save(title)
+                print("Sent:", title)
+
+        # 🔥 SEND STATUS EVEN IF NO UPDATE
+        if len(updates_found) == 0:
+            send_telegram("❌ No updates found on website")
+            print("No updates on site")
+
+        else:
+            send_telegram(f"✅ Checked: {len(updates_found)} items found")
+            print("Checked items:", len(updates_found))
 
     except Exception as e:
+        send_telegram(f"⚠️ ERROR:\n{e}")
         print("Error:", e)
 
-# ===== MAIN =====
+
+# ===== MAIN LOOP =====
 def main():
-    print("Hydnews Scraper Started...")
     setup_db()
 
+    print("Scraper Started...")
+
     while True:
-        print("Checking for updates...")
-        scrape()
-        print("Waiting 5 minutes...")
-        time.sleep(300)  # 5 minutes
+        check_updates()
+        print("Waiting 5 minutes...\n")
+        time.sleep(300)   # 5 minutes
+
 
 # ===== RUN =====
-if __name__ == "__main__":
+if _name_ == "_main_":
     main()
