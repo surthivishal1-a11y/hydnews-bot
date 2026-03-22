@@ -4,15 +4,21 @@ import sqlite3
 import time
 from telegram import Bot
 
+# ===== SETTINGS =====
 BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 
 URL = "https://www.manabadi.co.in/institute/DisplayDocsDetails.aspx?DocSourceId=20"
 
+# ===== DATABASE =====
 def setup_db():
     conn = sqlite3.connect("news.db")
     c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS seen_updates (title TEXT PRIMARY KEY)")
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS seen_updates (
+            title TEXT PRIMARY KEY
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -31,6 +37,7 @@ def save_update(title):
     conn.commit()
     conn.close()
 
+# ===== TELEGRAM =====
 def send_telegram(message):
     try:
         bot = Bot(token=BOT_TOKEN)
@@ -39,32 +46,48 @@ def send_telegram(message):
     except Exception as e:
         print("Telegram Error:", e)
 
+# ===== SCRAPER =====
 def scrape():
     try:
         response = requests.get(URL, verify=False)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        links = soup.find_all("a")
+        updates_found = False
 
-        for link in links:
-            title = link.get_text(strip=True)
+        # 🔴 TARGET ONLY REAL TABLE DATA
+        rows = soup.find_all("tr")
 
-            if title and len(title) > 10:
-                if is_new(title):
-                    send_telegram(title)
-                    save_update(title)
+        for row in rows:
+            cols = row.find_all("td")
+
+            # Ensure valid row with content
+            if len(cols) >= 2:
+                title = cols[1].get_text(strip=True)
+
+                # ignore short/garbage text
+                if title and len(title) > 15:
+                    if is_new(title):
+                        send_telegram(title)
+                        save_update(title)
+                        updates_found = True
+
+        if not updates_found:
+            print("No new updates")
 
     except Exception as e:
         print("Error:", e)
 
+# ===== MAIN =====
 def main():
-    print("Started...")
+    print("Hydnews Scraper Started...")
     setup_db()
 
     while True:
-        print("Checking...")
+        print("Checking for updates...")
         scrape()
-        time.sleep(300)
+        print("Waiting 5 minutes...")
+        time.sleep(300)  # 5 minutes
 
+# ===== RUN =====
 if __name__ == "__main__":
     main()
