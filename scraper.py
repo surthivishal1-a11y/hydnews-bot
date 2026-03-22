@@ -3,22 +3,22 @@ from bs4 import BeautifulSoup
 import sqlite3
 import asyncio
 from telegram import Bot
-import urllib3
 
-# disable SSL warnings
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# SETTINGS
+# ===== SETTINGS =====
 BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 URL = "https://manabadi.co.in/institute/DisplayDocsDetails.aspx?DocSourceId=20"
 
-# DATABASE SETUP
+# ===== DATABASE =====
 def setup_db():
     conn = sqlite3.connect('news.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS seen_updates
-                 (title TEXT PRIMARY KEY, seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS seen_updates (
+            title TEXT PRIMARY KEY,
+            seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -37,7 +37,7 @@ def save_update(title):
     conn.commit()
     conn.close()
 
-# SCRAPER (LATEST 10 ONLY)
+# ===== SCRAPER =====
 def scrape():
     headers = {'User-Agent': 'Mozilla/5.0'}
     try:
@@ -45,67 +45,60 @@ def scrape():
         soup = BeautifulSoup(response.text, 'html.parser')
 
         updates = []
-
         for link in soup.find_all('a'):
             text = link.get_text(strip=True)
-            href = link.get('href')
 
-            if href and len(text) > 20 and any(word in text.lower() for word in [
-                'osmania', 'result', 'exam', 'hall ticket', 'notification', 'timetable', 'ou '
+            if len(text) > 20 and any(word in text.lower() for word in [
+                'result', 'exam', 'notification', 'timetable', 'hall ticket'
             ]):
+                updates.append(text)
 
-                if not href.startswith("http"):
-                    href = "https://manabadi.co.in/" + href
-
-                updates.append((text, href))
-
-        # take latest 10
-        updates = updates[::-1][:10]
-
-        return updates
+        return updates[:10]
 
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error:", e)
         return []
 
-# TELEGRAM SEND
+# ===== TELEGRAM =====
 async def send_telegram(message):
     try:
         bot = Bot(token=BOT_TOKEN)
         await bot.send_message(chat_id=CHAT_ID, text=message)
     except Exception as e:
-        print(f"Telegram Error: {e}")
+        print("Telegram Error:", e)
 
-# MAIN LOOP
+# ===== MAIN =====
 async def main():
     setup_db()
     print("HydNews Scraper Started...")
 
     while True:
         print("Checking for updates...")
+
         updates = scrape()
 
-        sent_any = False
+        if not updates:
+            print("No updates found from site.")
+            await send_telegram("⚠️ No updates found")
+        else:
+            new_found = False
 
-        for title, link in updates:
-            if is_new(title):
-                save_update(title)
+            for update in updates:
+                if is_new(update):
+                    save_update(update)
+                    msg = f"🔔 NEW UPDATE\n\n{update}\n\nSource: Manabadi"
+                    await send_telegram(msg)
+                    print("Sent:", update)
+                    new_found = True
+                    await asyncio.sleep(2)
 
-                message = f"🔔 NEW UPDATE\n\n{title}\n\n{link}"
-                await send_telegram(message)
+            if not new_found:
+                print("No updates sent.")
+                await send_telegram("✅ No new updates")
 
-                print(f"Sent: {title}")
-                sent_any = True
-                await asyncio.sleep(2)
-
-        # if nothing new
-        if not sent_any:
-            msg = "❌ No new updates found."
-            await send_telegram(msg)
-            print("No updates sent.")
-
-        print("Done. Waiting 5 minutes...")
+        print("Waiting 5 minutes...\n")
         await asyncio.sleep(300)
 
+# ===== RUN =====
 if __name__ == "__main__":
     asyncio.run(main())
