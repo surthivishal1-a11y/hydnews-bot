@@ -8,10 +8,10 @@ from telegram import Bot
 BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 
-# 👉 ONLY ONE WEBSITE
+# ONLY ONE WEBSITE
 URL = "https://manabadi.co.in/institute/DisplayDocsDetails.aspx?DocSourceId=20"
 
-# ===== DATABASE SETUP =====
+# ===== DATABASE =====
 def setup_db():
     conn = sqlite3.connect("news.db")
     c = conn.cursor()
@@ -53,10 +53,10 @@ def check_updates():
         headers = {
             "User-Agent": "Mozilla/5.0"
         }
+
         response = requests.get(URL, headers=headers, verify=False)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # 👉 Adjust this if website changes
         links = soup.find_all("a")
 
         new_found = False
@@ -64,7 +64,7 @@ def check_updates():
         for link in links:
             title = link.text.strip()
 
-            if title and len(title) > 10:  # filter junk
+            if title and len(title) > 10:
                 if is_new(title):
                     save_update(title)
                     send_telegram(title)
@@ -76,7 +76,7 @@ def check_updates():
     except Exception as e:
         print("Error:", e)
 
-# ===== MAIN LOOP =====
+# ===== MAIN =====
 if _name_ == "_main_":
     print("Hydnews Scraper Started...")
 
