@@ -8,7 +8,7 @@ import warnings
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings("ignore")
 
-BOT_TOKEN = "8778402329:AAGzD3n2P_miQeLOMkqeS2p5UZ28v3-nRGc"
+BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 
 def get_all_universities():
