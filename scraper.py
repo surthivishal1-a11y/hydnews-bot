@@ -10,7 +10,7 @@ from queue import Queue
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings("ignore")
 
-BOT_TOKEN = "8778402329:AAGzD3n2P_miQeLOMkqeS2p5UZ28v3-nRGc"
+BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 API_URL = "https://hydnews-api-production.up.railway.app"
 THREADS = 10
@@ -199,5 +199,5 @@ def main():
         cycle += 1
         time.sleep(300)
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     main()
