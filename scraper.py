@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings("ignore")
 
-BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
+BOT_TOKEN = ""8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 API_URL = "https://hydnews-api-production.up.railway.app"
 THREADS = 15
@@ -109,15 +109,19 @@ def send_telegram(message):
         print("Telegram Error:", e)
 
 def send_to_api(source, title, url, category):
-    try:
-        requests.post(f"{API_URL}/updates/add", json={
-            "university": source,
-            "title": title,
-            "url": url,
-            "category": category
-        }, timeout=5)
-    except Exception as e:
-        print(f"API Error: {e}")
+    def _send():
+        try:
+            requests.post(f"{API_URL}/updates/add", json={
+                "university": source,
+                "title": title,
+                "url": url,
+                "category": category
+            }, timeout=30)
+        except Exception as e:
+            print(f"API Error: {e}")
+    t = threading.Thread(target=_send)
+    t.daemon = True
+    t.start()
 
 def detect_category(title):
     t = title.lower()
@@ -176,20 +180,14 @@ def process_update(source_name, title, url):
         print(f"✅ [{category}][{source_name}] {title}")
 
 def scrape_home_page():
-    """Scrape home page — extracts real URLs from POPUP links"""
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     try:
         res = requests.get("https://www.manabadi.co.in",
                           headers=headers, verify=False, timeout=15)
         soup = BeautifulSoup(res.text, "html.parser")
-
         for link in soup.find_all("a", href=True):
             title = link.text.strip()
             href = link["href"]
-
-            # Extract real URL from POPUP links
-            # POPUP links look like:
-            # /qp/POPUP-Manabadi-Mobile-Alert.aspx?DocTypeId=123&DocUrl=https://...
             if "POPUP-Manabadi-Mobile-Alert" in href:
                 try:
                     parsed = urlparse(href)
@@ -200,13 +198,11 @@ def scrape_home_page():
                 except:
                     pass
             else:
-                # Normal link
                 if href.startswith("http"):
                     full_url = href
                 else:
                     full_url = f"https://www.manabadi.co.in{href}"
                 process_update("Manabadi Today", title, full_url)
-
         print("✅ Home page scraped")
     except Exception as e:
         print(f"Home page error: {e}")
