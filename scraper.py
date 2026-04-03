@@ -12,7 +12,7 @@ from urllib.parse import urlparse, parse_qs, unquote
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings("ignore")
 
-BOT_TOKEN = ""8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
+BOT_TOKEN = "8778402329:AAEXFb1DAn7MXEhT8EHGZcWdxwByRQMruEA"
 CHAT_ID = "1793924830"
 API_URL = "https://hydnews-api-production.up.railway.app"
 THREADS = 15
