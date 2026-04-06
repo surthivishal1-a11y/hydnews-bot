@@ -1,0 +1,2 @@
+worker: python scraper.py
+
