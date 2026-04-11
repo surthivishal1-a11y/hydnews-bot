@@ -311,6 +311,8 @@ def main():
                 f"⏱ {minutes}m {seconds}s"
             )
 
+        # Process news every 5 minutes
+        process_news()
         cycle += 1
         time.sleep(300)
 
