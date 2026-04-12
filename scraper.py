@@ -26,11 +26,6 @@ last_reset_date = [datetime.now().date()]
 
 MASTER_PAGES = [
     "https://www.manabadi.co.in/institute/Universities-Boards-Entrance-exams-recruitment-exams-of-AP-and-TS.htm",
-    "https://www.manabadi.co.in/institute/ViewDocUniversities.aspx",
-    "https://www.manabadi.co.in/institute/ViewDocBoards.aspx",
-    "https://www.manabadi.co.in/institute/ViewDocEntranceExams.aspx",
-    "https://www.manabadi.co.in/institute/ViewDocIndependentInst.aspx",
-    "https://www.manabadi.co.in/institute/ViewDocRecruitments.aspx",
 ]
 
 def get_all_sources():
