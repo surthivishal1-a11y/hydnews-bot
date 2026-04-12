@@ -315,7 +315,8 @@ def main():
 
 import anthropic
 
-ANTHROPIC_API_KEY = "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"
+import os
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 NEWS_API = "https://hydnews-api-production.up.railway.app"
 
 def scrape_careers360_news():
