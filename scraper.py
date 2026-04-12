@@ -312,6 +312,105 @@ def main():
             )
 
         # Process news every 5 minutes
+
+import anthropic
+
+ANTHROPIC_API_KEY = "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"
+NEWS_API = "https://hydnews-api-production.up.railway.app"
+
+def scrape_careers360_news():
+    try:
+        from bs4 import BeautifulSoup
+        res = requests.get("https://news.careers360.com/latest", timeout=10, headers={"User-Agent":"Mozilla/5.0"})
+        soup = BeautifulSoup(res.text, "html.parser")
+        articles = []
+        seen = set()
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if href.startswith("/") and len(href) > 10 and href.count("/") == 1:
+                full_url = "https://news.careers360.com" + href
+                title = a.get_text(strip=True)
+                if len(title) > 20 and full_url not in seen:
+                    seen.add(full_url)
+                    articles.append({"url": full_url, "title": title})
+        return articles[:10]
+    except Exception as e:
+        print("News scrape error:", e)
+        return []
+
+def fetch_article_content(url):
+    try:
+        from bs4 import BeautifulSoup
+        res = requests.get(url, timeout=15, headers={"User-Agent":"Mozilla/5.0"})
+        soup = BeautifulSoup(res.text, "html.parser")
+        for tag in soup(["script","style","nav","header","footer"]):
+            tag.decompose()
+        return soup.get_text(separator=" ", strip=True)[:3000]
+    except Exception as e:
+        print("Fetch error:", e)
+        return ""
+
+def rewrite_with_claude(title, content):
+    try:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        prompt = f"""You are an education news writer for Vidyalo.in India.
+Rewrite this article in your own words. Return ONLY this JSON, no other text:
+{{
+  "title_english": "SEO title in English",
+  "title_telugu": "Title in Telugu",
+  "title_hindi": "Title in Hindi",
+  "content_english": "Full article 800 words English with FAQ",
+  "content_telugu": "Article in Telugu 400 words",
+  "content_hindi": "Article in Hindi 400 words",
+  "category": "Results or Hall Tickets or Admissions or Entrance Exams or Recruitment or Education News",
+  "slug": "url-slug-english"
+}}
+
+Title: {title}
+Content: {content[:2000]}"""
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=4000,
+            messages=[{{"role": "user", "content": prompt}}]
+        )
+        import json
+        text = message.content[0].text.strip()
+        if "" in text:
+            text = text.split("")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        return json.loads(text.strip())
+    except Exception as e:
+        print("Claude error:", e)
+        return None
+
+def process_news():
+    print("Checking Careers360 news...")
+    articles = scrape_careers360_news()
+    try:
+        check = requests.get(NEWS_API + "/news/all?limit=500", timeout=5)
+        existing = [n["slug"] for n in check.json()]
+    except:
+        existing = []
+    for article in articles:
+        try:
+            content = fetch_article_content(article["url"])
+            if not content:
+                continue
+            result = rewrite_with_claude(article["title"], content)
+            if not result:
+                continue
+            if result["slug"] in existing:
+                continue
+            result["source_url"] = article["url"]
+            result["image_url"] = ""
+            res = requests.post(NEWS_API + "/news/add", json=result, timeout=10)
+            if res.status_code == 200:
+                print(f"News added: {result['title_english'][:50]}")
+                existing.append(result["slug"])
+        except Exception as e:
+            print("Error:", e)
+
         process_news()
         cycle += 1
         time.sleep(300)
